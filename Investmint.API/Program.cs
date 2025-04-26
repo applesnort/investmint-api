@@ -1,24 +1,39 @@
 var builder = WebApplication.CreateBuilder(args);
 
+// Add configuration from appsettings
+var frontendUrl = builder.Configuration["FrontendUrl"] ?? "http://localhost:3000";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { frontendUrl };
+
+// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowInvestmintFrontend",
         policy =>
         {
-            policy.WithOrigins("http://localhost:3000") // Next.js dev server
+            policy.WithOrigins(allowedOrigins)
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // If using cookies/auth
         });
 });
 
-// Add services to the container.
+// Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "Investmint API",
+        Version = "v1",
+        Description = "Financial API for Investmint App"
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Middleware pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -26,10 +41,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowInvestmintFrontend");
+app.UseCors("AllowInvestmintFrontend"); // Must come before MapControllers
 app.UseAuthorization();
 app.MapControllers();
 
+// Weather endpoint
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
